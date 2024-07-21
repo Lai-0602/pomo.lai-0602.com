@@ -1,0 +1,291 @@
+<html>
+    <head>
+        <base href="https://pomo-magic.net/">
+        <title>Pomo-Magic: Visualize Your Productivity Flow</title>
+        <style>
+            body {
+                font-family: 'Roboto', sans-serif;
+                transition: all 0.5s ease;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }
+
+            .container {
+                background: white;
+                border-radius: 20px;
+                padding: 2rem;
+                box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+                text-align: center;
+                transition: all 0.5s ease;
+            }
+
+            h1 {
+                margin-bottom: 1rem;
+                transition: color 0.5s ease;
+            }
+
+            .timer {
+                font-size: 4rem;
+                font-weight: bold;
+                margin: 1rem 0;
+                transition: color 0.5s ease;
+            }
+
+            .controls {
+                display: flex;
+                justify-content: center;
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            button {
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .settings {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            input {
+                width: 50px;
+                padding: 0.3rem;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+            }
+
+            .status {
+                font-style: italic;
+                transition: color 0.5s ease;
+            }
+
+            /* Default theme */
+            body.default {
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            }
+
+            body.default .container {
+                background: white;
+            }
+
+            body.default h1 {
+                color: #3a3a3a;
+            }
+
+            body.default .timer {
+                color: #4a4a4a;
+            }
+
+            body.default button {
+                background: #6c5ce7;
+                color: white;
+            }
+
+            body.default button:hover {
+                background: #5b4bc6;
+            }
+
+            body.default .status {
+                color: #666;
+            }
+
+            /* Work theme */
+            body.work {
+                background: linear-gradient(135deg, #e6e6e6 0%, #bbbbbb 100%);
+            }
+
+            body.work .container {
+                background: #f0f0f0;
+            }
+
+            body.work h1 {
+                color: #333;
+            }
+
+            body.work .timer {
+                color: #444;
+            }
+
+            body.work button {
+                background: #555;
+                color: #eee;
+            }
+
+            body.work button:hover {
+                background: #444;
+            }
+
+            body.work .status {
+                color: #555;
+            }
+
+            /* Break theme */
+            body.break {
+                background: linear-gradient(135deg, #fad0c4 0%, #ffd1ff 100%);
+            }
+
+            body.break .container {
+                background: #fff5f5;
+            }
+
+            body.break h1 {
+                color: #ff6b6b;
+            }
+
+            body.break .timer {
+                color: #ff8787;
+            }
+
+            body.break button {
+                background: #ffa502;
+                color: #fff;
+            }
+
+            body.break button:hover {
+                background: #ff9f43;
+            }
+
+            body.break .status {
+                color: #ff7675;
+            }
+        </style>
+    </head>
+    <body class="default">
+        <div class="container">
+            <h1>Pomo-Magic</h1>
+            <div class="timer" id="timer">25:00</div>
+            <div class="controls">
+                <button id="startBtn">Start</button>
+                <button id="pauseBtn">Pause</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+            <div class="status" id="status">Ready to start</div>
+            <div class="settings">
+                <label>
+                    Work time: <input type="number" id="workTime" value="25" min="1">minutes
+      
+                </label>
+                <label>
+                    Short break: <input type="number" id="shortBreak" value="5" min="1">minutes
+      
+                </label>
+                <label>
+                    Long break: <input type="number" id="longBreak" value="30" min="1">minutes
+      
+                </label>
+                <label>
+                    Sessions before long break: <input type="number" id="sessions" value="4" min="1">
+                </label>
+            </div>
+        </div>
+        <script>
+            let timer;
+            let isRunning = false;
+            let timeLeft = 25 * 60;
+            let currentSession = 1;
+            let isBreak = false;
+
+            const workSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            const breakSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3');
+
+            const body = document.body;
+            const timerDisplay = document.getElementById('timer');
+            const startBtn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const statusDisplay = document.getElementById('status');
+
+            function updateDisplay() {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            function setTheme(theme) {
+                body.className = theme;
+            }
+
+            function startTimer() {
+                if (!isRunning) {
+                    isRunning = true;
+                    timer = setInterval(()=>{
+                        timeLeft--;
+                        updateDisplay();
+                        if (timeLeft === 0) {
+                            clearInterval(timer);
+                            isRunning = false;
+                            if (isBreak) {
+                                startWork();
+                            } else {
+                                startBreak();
+                            }
+                        }
+                    }
+                    , 1000);
+                    statusDisplay.textContent = isBreak ? 'Break time!' : 'Focus time!';
+                    setTheme(isBreak ? 'break' : 'work');
+                }
+            }
+
+            function pauseTimer() {
+                clearInterval(timer);
+                isRunning = false;
+                statusDisplay.textContent = 'Paused';
+                setTheme('default');
+            }
+
+            function resetTimer() {
+                clearInterval(timer);
+                isRunning = false;
+                currentSession = 1;
+                isBreak = false;
+                timeLeft = parseInt(document.getElementById('workTime').value) * 60;
+                updateDisplay();
+                statusDisplay.textContent = 'Ready to start';
+                setTheme('default');
+            }
+
+            function startWork() {
+                isBreak = false;
+                timeLeft = parseInt(document.getElementById('workTime').value) * 60;
+                updateDisplay();
+                startTimer();
+                statusDisplay.textContent = `Work session ${currentSession}`;
+                setTheme('work');
+                workSound.play();
+            }
+
+            function startBreak() {
+                isBreak = true;
+                const sessionsBeforeLongBreak = parseInt(document.getElementById('sessions').value);
+                if (currentSession % sessionsBeforeLongBreak === 0) {
+                    timeLeft = parseInt(document.getElementById('longBreak').value) * 60;
+                    statusDisplay.textContent = 'Long break';
+                } else {
+                    timeLeft = parseInt(document.getElementById('shortBreak').value) * 60;
+                    statusDisplay.textContent = 'Short break';
+                }
+                currentSession++;
+                updateDisplay();
+                startTimer();
+                setTheme('break');
+                breakSound.play();
+            }
+
+            startBtn.addEventListener('click', startWork);
+            pauseBtn.addEventListener('click', pauseTimer);
+            resetBtn.addEventListener('click', resetTimer);
+
+            updateDisplay();
+        </script>
+    </body>
+</html>
